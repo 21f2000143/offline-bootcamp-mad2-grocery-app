@@ -12,3 +12,9 @@
 
 ## to see remote
 ```git remote -v```
+
+## to push
+```git push <remote> <branch>```
+
+## to create branch
+```git branch <name>```
