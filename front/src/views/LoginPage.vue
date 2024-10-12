@@ -7,10 +7,10 @@
                     <button type="button" class="btn-close" aria-label="Close" @click="closeCard"></button>
                 </div>
                 <h5 class="card-title">Sign In</h5>
-                <form @submit.prevent="submitForm">
+                <form @submit.prevent="login">
                     <div class="mb-3">
-                        <label for="exampleInputEmail1" class="form-label">Username</label>
-                        <input type="text" v-model="username" class="form-control" id="exampleInputEmail1">
+                        <label for="exampleInputEmail1" class="form-label">Email address</label>
+                        <input type="text" v-model="email" class="form-control" id="exampleInputEmail1">
                         <div v-if="message" class="alert alert-warning">
                             {{ message }}
                         </div>
@@ -27,7 +27,7 @@
 </template>
 
 <script>
-
+import axios from 'axios';
 export default {
     name: 'LoginPage',
     data() {
@@ -38,12 +38,29 @@ export default {
     },
 
     methods: {
-        login() {
-            this.$router.push({ name: 'home' });
-        },
         closeCard() {
             this.$router.push('/');
-        }
+        },
+        async login() {
+            try {
+                const response = await axios.post('http://127.0.0.1:5000/api/login', {
+                    email: this.email,
+                    password: this.password
+                })
+                console.log(response)
+                if (!response.status == 200) {
+                    alert(response.data.error);
+                    throw new Error(response.data.error);
+                }
+                else {
+                    alert('Login success!');
+                    this.$router.push('/');
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                // Optionally, notify the user or perform other error-handling actions
+            }
+        },
     }
 }
 </script>
