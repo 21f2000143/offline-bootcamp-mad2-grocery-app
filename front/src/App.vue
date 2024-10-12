@@ -10,10 +10,8 @@ export default {
 
 <template>
   <div id="app">
-    <MenuComp />
-    <router-view></router-view> 
+    <router-view />
   </div>
 </template>
 
-<style scoped>
-</style>
+<style scoped></style>
