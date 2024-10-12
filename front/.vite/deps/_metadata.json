@@ -1,0 +1,109 @@
+{
+  "hash": "23fc498f",
+  "configHash": "a766bb9a",
+  "lockfileHash": "d59a8ffe",
+  "browserHash": "db491447",
+  "optimized": {
+    "vue": {
+      "src": "../../node_modules/vue/dist/vue.runtime.esm-bundler.js",
+      "file": "vue.js",
+      "fileHash": "e69416b1",
+      "needsInterop": false
+    },
+    "bootstrap/dist/js/bootstrap.min.js": {
+      "src": "../../node_modules/bootstrap/dist/js/bootstrap.min.js",
+      "file": "bootstrap_dist_js_bootstrap__min__js.js",
+      "fileHash": "57adf711",
+      "needsInterop": true
+    },
+    "primevue/config": {
+      "src": "../../node_modules/primevue/config/index.mjs",
+      "file": "primevue_config.js",
+      "fileHash": "be4ce513",
+      "needsInterop": false
+    },
+    "@primevue/themes/aura": {
+      "src": "../../node_modules/@primevue/themes/aura/index.mjs",
+      "file": "@primevue_themes_aura.js",
+      "fileHash": "388c8e93",
+      "needsInterop": false
+    },
+    "primevue/button": {
+      "src": "../../node_modules/primevue/button/index.mjs",
+      "file": "primevue_button.js",
+      "fileHash": "c3afa737",
+      "needsInterop": false
+    },
+    "primevue/tooltip": {
+      "src": "../../node_modules/primevue/tooltip/index.mjs",
+      "file": "primevue_tooltip.js",
+      "fileHash": "4a102e44",
+      "needsInterop": false
+    },
+    "primevue/menubar": {
+      "src": "../../node_modules/primevue/menubar/index.mjs",
+      "file": "primevue_menubar.js",
+      "fileHash": "a928a3fe",
+      "needsInterop": false
+    },
+    "primevue/inputtext": {
+      "src": "../../node_modules/primevue/inputtext/index.mjs",
+      "file": "primevue_inputtext.js",
+      "fileHash": "f3d6d523",
+      "needsInterop": false
+    },
+    "primevue/badge": {
+      "src": "../../node_modules/primevue/badge/index.mjs",
+      "file": "primevue_badge.js",
+      "fileHash": "97d618bd",
+      "needsInterop": false
+    },
+    "primevue/avatar": {
+      "src": "../../node_modules/primevue/avatar/index.mjs",
+      "file": "primevue_avatar.js",
+      "fileHash": "734f8470",
+      "needsInterop": false
+    },
+    "vue-router": {
+      "src": "../../node_modules/vue-router/dist/vue-router.mjs",
+      "file": "vue-router.js",
+      "fileHash": "ffc090e5",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-PW6BABTV": {
+      "file": "chunk-PW6BABTV.js"
+    },
+    "chunk-P5TKFE7F": {
+      "file": "chunk-P5TKFE7F.js"
+    },
+    "chunk-OBJF3UNZ": {
+      "file": "chunk-OBJF3UNZ.js"
+    },
+    "chunk-FOR23SV4": {
+      "file": "chunk-FOR23SV4.js"
+    },
+    "chunk-KEORDAOA": {
+      "file": "chunk-KEORDAOA.js"
+    },
+    "chunk-7AYBIFYF": {
+      "file": "chunk-7AYBIFYF.js"
+    },
+    "chunk-FRCWHNZ6": {
+      "file": "chunk-FRCWHNZ6.js"
+    },
+    "chunk-OFFNAEAN": {
+      "file": "chunk-OFFNAEAN.js"
+    },
+    "chunk-6VXE72DV": {
+      "file": "chunk-6VXE72DV.js"
+    },
+    "chunk-YJZCKX3S": {
+      "file": "chunk-YJZCKX3S.js"
+    },
+    "chunk-DZZM6G22": {
+      "file": "chunk-DZZM6G22.js"
+    }
+  }
+}

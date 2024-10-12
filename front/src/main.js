@@ -13,6 +13,11 @@ import Menubar from 'primevue/menubar';
 import InputText from 'primevue/inputtext';
 import Badge from 'primevue/badge';
 import Avatar from 'primevue/avatar';
+import Checkbox from 'primevue/checkbox';
+
+import Card from 'primevue/card';
+
+
 
 
 
@@ -31,4 +36,6 @@ app.component('InputText', InputText)
 app.component('Badge', Badge)
 app.component('Avatar', Avatar)
 app.component('Menubar', Menubar)
+app.component('Checkbox', Checkbox)
+app.component('Card', Card)
 app.mount('#app')
