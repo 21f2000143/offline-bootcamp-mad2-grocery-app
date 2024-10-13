@@ -22,3 +22,6 @@
 
 ## To see all dependencies
 ### `npm list`
+
+## To run the back app
+### `. local_run.sh`
