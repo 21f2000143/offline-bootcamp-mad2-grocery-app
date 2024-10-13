@@ -12,16 +12,13 @@ from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from datetime import timedelta
 
-
-
-
 app = Flask(__name__)
-CORS(app, origins='http://localhost:5173')
+CORS(app, origins='http://localhost:5173', supports_credentials=True)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 # Setup the Flask-JWT-Extended extension
 app.config["JWT_SECRET_KEY"] = "5#y2LF4Q8z\n\xec]/"  # Change this!
 app.config['JWT_COOKIE_SECURE'] = False
-app.config['JWT_TOKEN_LOCATION'] = ['cookies']
+app.config['JWT_TOKEN_LOCATION'] = ['cookies', ]
 app.config['JWT_COOKIE_CSRF_PROTECT'] = False
 app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
 jwt = JWTManager(app)
@@ -51,7 +48,7 @@ def login():
     if user:
         if check_password_hash(user.password, password):
             access_token = create_access_token(identity=user.email)
-            response = jsonify(msg="login successful")
+            response = jsonify(access_token=access_token)
             set_access_cookies(response, access_token)
             return response
         return jsonify(error="Authentication failed"), 401

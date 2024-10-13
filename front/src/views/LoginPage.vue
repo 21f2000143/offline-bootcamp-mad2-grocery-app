@@ -46,7 +46,12 @@ export default {
                 const response = await axios.post('http://127.0.0.1:5000/api/login', {
                     email: this.email,
                     password: this.password
-                })
+                },
+                {
+                    withCredentials: true,
+                    credentials: 'include'
+                }
+            )
                 console.log(response)
                 if (!response.status == 200) {
                     alert(response.data.error);
