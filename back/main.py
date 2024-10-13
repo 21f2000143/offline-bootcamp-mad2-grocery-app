@@ -10,21 +10,22 @@ from flask_jwt_extended import get_jwt_identity
 from flask_jwt_extended import jwt_required, set_access_cookies
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
-from datetime import timedelta
+from config import LocalDevelopmentConfig
+from flask_restful import Resource, Api
 
-app = Flask(__name__)
-CORS(app, origins='http://localhost:5173', supports_credentials=True)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
-# Setup the Flask-JWT-Extended extension
-app.config["JWT_SECRET_KEY"] = "5#y2LF4Q8z\n\xec]/"  # Change this!
-app.config['JWT_COOKIE_SECURE'] = False
-app.config['JWT_TOKEN_LOCATION'] = ['cookies', ]
-app.config['JWT_COOKIE_CSRF_PROTECT'] = False
-app.config['JWT_ACCESS_TOKEN_EXPIRES'] = timedelta(hours=1)
-jwt = JWTManager(app)
-db.init_app(app)
-app.app_context().push()
-db.create_all()
+app, api = None, None
+def create_app():
+    app = Flask(__name__)
+    app.config.from_object(LocalDevelopmentConfig)
+    CORS(app, origins='http://localhost:5173', supports_credentials=True)
+    jwt = JWTManager(app)
+    db.init_app(app)
+    app.app_context().push()
+    db.create_all()
+    api = Api(app)
+    return app, api
+
+app, api = create_app()
 
 
 admin_exist = User.query.filter_by(email="sachin@gmail.com").first()
@@ -38,22 +39,22 @@ if admin_exist is None:
 
 # Create a route to authenticate your users and return JWTs. The
 # create_access_token() function is used to actually generate the JWT.
-@app.route("/api/login", methods=["POST"])
-def login():
-    data = request.get_json()
-    email = data.get("email", None)
-    password = data.get("password", None)
-    print(email, password)
-    user = User.query.filter_by(email=email).first()
-    if user:
-        if check_password_hash(user.password, password):
-            access_token = create_access_token(identity=user.email)
-            response = jsonify(access_token=access_token)
-            set_access_cookies(response, access_token)
-            return response
-        return jsonify(error="Authentication failed"), 401
+# @app.route("/api/login", methods=["POST"])
+# def login():
+#     data = request.get_json()
+#     email = data.get("email", None)
+#     password = data.get("password", None)
+#     print(email, password)
+#     user = User.query.filter_by(email=email).first()
+#     if user:
+#         if check_password_hash(user.password, password):
+#             access_token = create_access_token(identity=user.email)
+#             response = jsonify(access_token=access_token)
+#             set_access_cookies(response, access_token)
+#             return response
+#         return jsonify(error="Authentication failed"), 401
     
-    return jsonify(error="wrong credentials"), 404
+#     return jsonify(error="wrong credentials"), 404
 
 
 # Protect a route with jwt_required, which will kick out requests
@@ -65,5 +66,26 @@ def protected():
     current_user = get_jwt_identity()
     return jsonify(logged_in_as=current_user), 200
 
+
+####------- My flask-restful api resources will start from here ###--------
+
+class LoginResource(Resource):
+    def post(self):
+        data = request.get_json()
+        email = data.get("email", None)
+        password = data.get("password", None)
+        user = User.query.filter_by(email=email).first()
+        if user:
+            if check_password_hash(user.password, password):
+                access_token = create_access_token(identity=user.email)
+                response = jsonify(access_token=access_token)
+                set_access_cookies(response, access_token)
+                return response
+            return jsonify(error="Authentication failed"), 401
+        return jsonify(error="wrong credentials"), 404
+    
+
+api.add_resource(LoginResource, '/api/login')
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
