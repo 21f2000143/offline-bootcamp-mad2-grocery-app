@@ -87,6 +87,7 @@
 </template>
 
 <script>
+import axios from 'axios';
 export default {
     data() {
         return {
@@ -244,8 +245,8 @@ export default {
         //   alert(data.message)
         // }, false);
         this.$store.dispatch('fetchCategories')
-        this.$store.dispatch('fetchAuthUser')
-        this.$store.dispatch('fetchNoti')
+        // this.$store.dispatch('fetchAuthUser')
+        // this.$store.dispatch('fetchNoti')
     }
 }
 </script>

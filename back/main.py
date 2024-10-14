@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, abort
 from flask import jsonify
 from flask import request
 from database import db
@@ -31,7 +31,7 @@ app, api, jwt = None, None, None
 def create_app():
     app = Flask(__name__)
     app.config.from_object(LocalDevelopmentConfig)
-    CORS(app, origins='http://localhost:5173', supports_credentials=True)
+    CORS(app, origins=['http://localhost:5173'], supports_credentials=True)
     jwt = JWTManager(app)
     db.init_app(app)
     app.app_context().push()
@@ -93,7 +93,72 @@ class LoginResource(Resource):
         return jsonify(error="wrong credentials"), 404
 
 
+class CatListResource(Resource):
+    def get(self):
+        categories = Category.query.all()
+        categories_list = []
+        for category in categories:
+            cat = {
+                'id': category.id,
+                'name': category.name,
+            }
+            categories_list.append(cat)
+        return categories_list
+
+
+class CategoryResource(Resource):
+    def get(self, id):
+        category = Category.query.get(id)
+        if category:
+            return {
+                'id': category.id,
+                'name': category.name
+            }
+        else:
+            return jsonify({'error': 'Category not found'}), 404
+      
+    def put(self, id):
+        category = Category.query.filter_by(id=id).first()
+        if category:
+            data = request.get_json()
+            category.name = data['name']
+            db.session.commit()
+            return jsonify({
+                'id': category.id,
+                'name': category.name
+            })
+        else:
+            return jsonify({'error': 'Category not found'}), 404
+        
+    def delete(self, id):
+        category = Category.query.filter_by(id=id).first()
+        if category:
+            db.session.delete(category)
+            db.session.commit()
+            return {'message': 'Category deleted successfully'}, 200
+        else:
+            return {'error': 'Category not found'}, 404
+    
+    def post(self):
+        data = request.get_json()
+        if data:
+            if not Category.query.filter_by(name=data['name']).first():
+                category = Category(name=data['name'])
+                db.session.add(category)
+                db.session.commit()
+                return {
+                    'message': f"Category {data['name'] } created successfully",
+                    'resource': {'id': category.id, 'name': category.name}}, 201
+            abort(409, message="Resource already exists")
+        else:
+            abort(404, message="Not found")
+
+
 api.add_resource(LoginResource, '/api/login')
+api.add_resource(CatListResource, '/get/categories')
+api.add_resource(CategoryResource, '/update/category/<int:id>',
+                 '/delete/category/<int:id>', '/get/category/<int:id>',
+                 '/add/cat')
 
 
 class AuthUser(Resource):
@@ -173,7 +238,7 @@ class Signup(Resource):
                 "role": data["role"],
                 "auth-token": current_user.is_authenticated
             }
-            return jsonify({'message': 'User registered successfully', 
+            return jsonify({'message': 'User registered successfully',
                             'data': verified_data}), 201
 
 
@@ -183,6 +248,7 @@ class Signup(Resource):
 #         logout_user()
 #         return jsonify({'message': "logout successful"}), 200
 
+# ------- The CRUD resources will start from here ----#
 
 api.add_resource(AuthUser, '/auth/user')
 api.add_resource(Decline, '/decline/<int:id>')

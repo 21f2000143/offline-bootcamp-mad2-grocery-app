@@ -53,7 +53,6 @@ export default {
                 },
                     {
                         withCredentials: true,
-                        credentials: 'include'
                     }
                 )
                 console.log(response)
