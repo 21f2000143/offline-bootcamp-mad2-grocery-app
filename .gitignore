@@ -24,3 +24,4 @@ dist-ssr
 *.sw?
 back/.env
 back/__pycache__
+back/celerybeat-schedule
