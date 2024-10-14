@@ -57,6 +57,7 @@ export default {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRFToken': this.getCookie('csrftoken')
           },
           body: JSON.stringify({
             name: this.name

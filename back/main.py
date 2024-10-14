@@ -1,3 +1,4 @@
+# --- Imports --- ###
 from flask import Flask, abort
 from flask import jsonify
 from flask import request
@@ -20,14 +21,16 @@ from flask_jwt_extended import (
     set_access_cookies,
     current_user
 )
-
 from flask_cors import CORS
+from celery.schedules import crontab
 from config import LocalDevelopmentConfig
 from flask_restful import Resource, Api
 import workers
+
+
 app, api, jwt = None, None, None
 
-
+# ---- Flask app factory ---- #
 def create_app():
     app = Flask(__name__)
     app.config.from_object(LocalDevelopmentConfig)
@@ -41,6 +44,18 @@ def create_app():
 
 
 app, api, jwt = create_app()
+
+# ------- Celery app ------- #
+celery = workers.celery
+
+# Update celery app configurations
+celery.conf.update(
+    broker_url=app.config["CELERY_BROKER_URL"],
+    result_backend=app.config["CELERY_RESULT_BACKEND"],
+    timezone=app.config["CELERY_TIMEZONE"],
+    broker_connection_retry_on_startup=app.config["BROKER_CONNECTION_RETRY_ON_STARTUP"]
+)
+celery.conf.timezone = 'Asia/Kolkata'
 
 
 # Register a callback function that takes whatever object is passed in as the
@@ -60,9 +75,7 @@ def user_lookup_callback(_jwt_header, jwt_data):
     return User.query.filter_by(id=identity).first()
 
 
-celery = workers.celery
-
-
+# ------- Admin user through code ---#
 admin_exist = User.query.filter_by(email="sachin@gmail.com").first()
 if admin_exist is None:
     user = User(email="sachin@gmail.com",
@@ -70,6 +83,7 @@ if admin_exist is None:
                 role="admin", doj=datetime.now(), loginAt=datetime.now())
     db.session.add(user)
     db.session.commit()
+
 
 # ------- My flask-restful api resources will start from here --------#
 
@@ -91,75 +105,7 @@ class LoginResource(Resource):
                 return response
             return jsonify(error="Authentication failed"), 401
         return jsonify(error="wrong credentials"), 404
-
-
-class CatListResource(Resource):
-    def get(self):
-        categories = Category.query.all()
-        categories_list = []
-        for category in categories:
-            cat = {
-                'id': category.id,
-                'name': category.name,
-            }
-            categories_list.append(cat)
-        return categories_list
-
-
-class CategoryResource(Resource):
-    def get(self, id):
-        category = Category.query.get(id)
-        if category:
-            return {
-                'id': category.id,
-                'name': category.name
-            }
-        else:
-            return jsonify({'error': 'Category not found'}), 404
-      
-    def put(self, id):
-        category = Category.query.filter_by(id=id).first()
-        if category:
-            data = request.get_json()
-            category.name = data['name']
-            db.session.commit()
-            return jsonify({
-                'id': category.id,
-                'name': category.name
-            })
-        else:
-            return jsonify({'error': 'Category not found'}), 404
-        
-    def delete(self, id):
-        category = Category.query.filter_by(id=id).first()
-        if category:
-            db.session.delete(category)
-            db.session.commit()
-            return {'message': 'Category deleted successfully'}, 200
-        else:
-            return {'error': 'Category not found'}, 404
     
-    def post(self):
-        data = request.get_json()
-        if data:
-            if not Category.query.filter_by(name=data['name']).first():
-                category = Category(name=data['name'])
-                db.session.add(category)
-                db.session.commit()
-                return {
-                    'message': f"Category {data['name'] } created successfully",
-                    'resource': {'id': category.id, 'name': category.name}}, 201
-            abort(409, message="Resource already exists")
-        else:
-            abort(404, message="Not found")
-
-
-api.add_resource(LoginResource, '/api/login')
-api.add_resource(CatListResource, '/get/categories')
-api.add_resource(CategoryResource, '/update/category/<int:id>',
-                 '/delete/category/<int:id>', '/get/category/<int:id>',
-                 '/add/cat')
-
 
 class AuthUser(Resource):
     @jwt_required()
@@ -242,19 +188,123 @@ class Signup(Resource):
                             'data': verified_data}), 201
 
 
-# class Logout(Resource):
-#     @login_required
-#     def get(self):
-#         logout_user()
-#         return jsonify({'message': "logout successful"}), 200
+class Logout(Resource):
+    def get(self):
+        print("We will implement it later")
+        return jsonify({'message': "logout successful"}), 200
+# --------------- AUTH END HERE ------------------------###
 
-# ------- The CRUD resources will start from here ----#
 
+# ------- The CRUD operations or the business logic part will start from here ----#
+class CatListResource(Resource):
+    def get(self):
+        categories = Category.query.all()
+        categories_list = []
+        for category in categories:
+            cat = {
+                'id': category.id,
+                'name': category.name,
+            }
+            categories_list.append(cat)
+        return categories_list
+
+
+class CategoryResource(Resource):
+    def get(self, id):
+        category = Category.query.get(id)
+        if category:
+            return {
+                'id': category.id,
+                'name': category.name
+            }
+        else:
+            return jsonify({'error': 'Category not found'}), 404
+      
+    def put(self, id):
+        category = Category.query.filter_by(id=id).first()
+        if category:
+            data = request.get_json()
+            category.name = data['name']
+            db.session.commit()
+            return jsonify({
+                'id': category.id,
+                'name': category.name
+            })
+        else:
+            return jsonify({'error': 'Category not found'}), 404
+     
+    def delete(self, id):
+        category = Category.query.filter_by(id=id).first()
+        if category:
+            db.session.delete(category)
+            db.session.commit()
+            return {'message': 'Category deleted successfully'}, 200
+        else:
+            return {'error': 'Category not found'}, 404
+ 
+    def post(self):
+        data = request.get_json()
+        if data:
+            if not Category.query.filter_by(name=data['name']).first():
+                category = Category(name=data['name'])
+                db.session.add(category)
+                db.session.commit()
+                return {
+                    'message': f"Category {data['name'] } created successfully",
+                    'resource': {'id': category.id, 'name': category.name}}, 201
+            abort(409, message="Resource already exists")
+        else:
+            abort(404, message="Not found")
+
+# ----------- BUSINESS LOGIC END HERE -----------------###
+
+
+api.add_resource(LoginResource, '/api/login')
+api.add_resource(CatListResource, '/get/categories')
+api.add_resource(CategoryResource, '/update/category/<int:id>',
+                 '/delete/category/<int:id>', '/get/category/<int:id>',
+                 '/add/cat')
 api.add_resource(AuthUser, '/auth/user')
 api.add_resource(Decline, '/decline/<int:id>')
 api.add_resource(DeleteMan, '/delete/man/<int:id>')
 api.add_resource(Signup, '/signup')
-# api.add_resource(Logout, '/logout')
+
+
+# ----------- All the micro services or celery tasks will be added here ------------###
+@celery.task()
+def daily_reminder():
+    print('daily reminder to users executed')
+    return {'message': "Daily reminder to users executed"}
+
+
+@celery.task()
+def monthly_report():
+    print('monthly report to users executed')
+    return {'message': "Monthly report to users executed"}
+
+
+@celery.task()
+def user_triggered_async_job():
+    print('user triggered async job executed')
+    return {'message': "User triggered async job executed"}
+
+
+# ------- To schedule the tasks --------#
+celery.conf.beat_schedule = {
+    'my_monthly_task': {
+        'task': "main.daily_reminder",
+        'schedule': crontab(hour=13, minute=50, day_of_month=1,
+                            month_of_year='*/1'),
+    },
+    'my_daily_task': {
+        'task': "main.monthly_report",
+        'schedule': crontab(hour=21, minute=0),
+    },
+    'my_quick_check_task': {
+        'task': "main.user_triggered_async_job",
+        'schedule': crontab(minute='*/1'), 
+    },
+}
 
 if __name__ == "__main__":
     app.run()
