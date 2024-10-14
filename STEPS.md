@@ -25,3 +25,10 @@
 
 ## To run the back app
 ### `. local_run.sh`
+
+## To start the redis server
+### `sudo service redis-server start` (only for ubuntu/wsl)
+### `sudo service redis-server stop` (only for ubuntu/wsl)
+
+## To install celery with redis
+### `pip install celery[redis]` (inside the .env)

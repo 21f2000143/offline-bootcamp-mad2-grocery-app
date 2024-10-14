@@ -1,58 +1,138 @@
 <script>
 export default {
-  methods: {
-    addCat() {
-      this.$router.push('/admin/add-cat');
+    methods: {
+        addCat() {
+            this.$router.push('/admin/add-cat');
+        }
     }
-  }
 }
 </script>
 
 <template>
-  <div id="app">
-    <nav class="navbar navbar-expand-lg bg-body-tertiary">
-            <div class="container-fluid">
-                <a class="navbar-brand" href="#">Navbar</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
-                    data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent"
-                    aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarSupportedContent">
-                    <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                        <li class="nav-item">
-                            <a class="nav-link active" aria-current="page" href="#">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="btn" @click="addCat">Add Category</a>
-                        </li>
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"
-                                aria-expanded="false">
-                                Dropdown
-                            </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="#">Action</a></li>
-                                <li><a class="dropdown-item" href="#">Another action</a></li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li><a class="dropdown-item" href="#">Something else here</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link disabled" aria-disabled="true">Disabled</a>
-                        </li>
-                    </ul>
-                    <form class="d-flex" role="search">
-                        <input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
-                        <button class="btn btn-outline-success" type="submit">Search</button>
-                    </form>
-                </div>
-            </div>
-        </nav>
-    <router-view />
-  </div>
+    <div id="app">
+        <router-view />
+    </div>
 </template>
+<style scoped>
+body {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+}
 
-<style scoped></style>
+.notification-item {
+    border: 1px solid #ccc;
+    margin: 10px;
+    padding: 10px;
+    text-align: center;
+}
+
+.message-status {
+    font-weight: bold;
+    margin-top: 10px;
+}
+
+.action-buttons button {
+    margin-top: 5px;
+    margin-right: 5px;
+}
+
+.pointer-on-hover:hover {
+    cursor: pointer;
+}
+
+main {
+    flex: 1;
+    display: flex;
+}
+
+.sidebar {
+    width: 300px;
+    color: white;
+    padding: 20px;
+    margin-right: 4px;
+}
+
+.content {
+    flex: 1;
+    padding: 20px;
+}
+
+footer {
+    margin-top: auto;
+}
+
+.manager-profile {
+    border: 1px solid #ccc;
+    margin: 10px;
+    padding: 10px;
+    text-align: center;
+}
+
+.profile-icon {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.basic-info {
+    margin-top: 10px;
+}
+
+.action-buttons button {
+    margin-top: 5px;
+}
+
+.item-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-around;
+    align-items: center;
+    padding: 20px;
+}
+
+/* Style for each item */
+.item {
+    border: 1px solid #ccc;
+    padding: 10px;
+    margin: 10px;
+    width: 200px;
+    text-align: center;
+}
+
+/* Style for the product image */
+.product-image {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+}
+
+/* Style for the button to buy again */
+.buy-again-btn {
+    background-color: #4CAF50;
+    color: white;
+    padding: 10px;
+    text-align: center;
+    text-decoration: none;
+    display: inline-block;
+    border-radius: 5px;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+/* Style for the star rating */
+.star-rating {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 10px;
+}
+
+.star {
+    color: #FFD700;
+    font-size: 20px;
+    margin: 0 2px;
+    cursor: pointer;
+}
+</style>

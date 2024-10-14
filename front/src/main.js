@@ -4,6 +4,7 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap/dist/js/bootstrap.min.js';
 import App from './App.vue'
 import router from './router'
+import store from './store';
 import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura';
 import 'primeicons/primeicons.css'
@@ -25,6 +26,7 @@ import Card from 'primevue/card';
 const app = createApp(App)
 
 app.use(router)
+app.use(store)
 app.use(PrimeVue, {
     theme: {
         preset: Aura
