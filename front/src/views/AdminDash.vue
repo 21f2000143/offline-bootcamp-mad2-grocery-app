@@ -238,11 +238,11 @@ export default {
           }
     },
     mounted(){
-        const source = new EventSource("/stream");
-        source.addEventListener('notifyadmin', event => {
-          let data = JSON.parse(event.data);
-          alert(data.message)
-        }, false);
+        // const source = new EventSource("/stream");
+        // source.addEventListener('notifyadmin', event => {
+        //   let data = JSON.parse(event.data);
+        //   alert(data.message)
+        // }, false);
         this.$store.dispatch('fetchCategories')
         this.$store.dispatch('fetchAuthUser')
         this.$store.dispatch('fetchNoti')
