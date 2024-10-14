@@ -1,5 +1,5 @@
-import { createStore } from 'vuex'
-
+import { createStore } from 'vuex';
+import axios from 'axios';
 const store = createStore({
   state: {
     products: [],
@@ -112,6 +112,8 @@ const store = createStore({
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            withCredentials: true,
+            credentials: 'include'
           },
         });
         if (response.status === 200) {
@@ -132,6 +134,8 @@ const store = createStore({
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            withCredentials: true,
+            credentials: 'include'
           },
         });
         if (response.status === 200) {
@@ -152,6 +156,8 @@ const store = createStore({
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            withCredentials: true,
+            credentials: 'include'
           },
         });
         if (response.status === 200) {
@@ -168,11 +174,15 @@ const store = createStore({
     },
     async fetchAuthUser({ commit }) {
       try {
-        const response = await fetch('http://127.0.0.1:5000/auth/user', {
-          method: 'GET',
+        const csrf = document.cookie.match(/XSRF-TOKEN=([\w-]+)/)[1];
+        const xsrf = document.cookie.match(/_csrf=([\w-]+)/)[1];
+        const response = await axios.get('http://127.0.0.1:5000/auth/user', {
+          withCredentials: true,
           headers: {
             'Content-Type': 'application/json',
-          },
+            'X-XSRF-TOKEN': csrf,
+            'X-CSRF-TOKEN': xsrf,
+          }
         });
         if (response.status === 200) {
           const data = await response.json();
@@ -192,6 +202,8 @@ const store = createStore({
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
+            withCredentials: true,
+            credentials: 'include'
           },
         });
         if (response.status === 200) {
@@ -210,6 +222,7 @@ const store = createStore({
       try {
         const response = await fetch('http://127.0.0.1:5000/get/all/noti', {
           method: 'GET',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
@@ -230,10 +243,12 @@ const store = createStore({
       try {
         const response = await fetch('http://127.0.0.1:5000/get/categories', {
           method: 'GET',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
           },
         });
+
         if (response.status === 200) {
           const data = await response.json();
           console.log(data, 'categories fetched');

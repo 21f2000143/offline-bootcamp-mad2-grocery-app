@@ -48,7 +48,7 @@ export default {
     },
     async fetchcategory() {
       try {
-        const response = await fetch('http://127.0.0.1:5000/update/'+this.$route.params.id,{
+        const response = await fetch('http://127.0.0.1:5000/get/category/'+this.$route.params.id,{
           method: 'GET',
           headers: {
             
@@ -68,7 +68,7 @@ export default {
     async updatecategory() {
       if(confirm("Are you sure?")){
         try {
-          const response = await fetch('http://127.0.0.1:5000/update/'+this.$route.params.id,{
+          const response = await fetch('http://127.0.0.1:5000/update/category/'+this.$route.params.id,{
             method: 'PUT',
             headers: {
               
@@ -100,7 +100,7 @@ export default {
     async deletecategory() {
       if(confirm("Are you sure?")){
         try {
-          const response = await fetch('http://127.0.0.1:5000/update/'+this.$route.params.id,{
+          const response = await fetch('http://127.0.0.1:5000/delete/category/'+this.$route.params.id,{
             method: 'DELETE',
             headers: {
               
