@@ -10,14 +10,14 @@
         <form @submit.prevent="submitForm">
           <div class="mb-3">
             <label class="form-label">Email address</label>
-            <input type="email" v-model="email" class="form-control">
+            <input type="email" v-model="email" class="form-control" required>
             <div v-if="message" class="alert alert-warning">
               {{ message }}
             </div>
           </div>
           <div class="mb-3">
             <label class="form-label">Your Name</label>
-            <input type="text" v-model="name" class="form-control">
+            <input type="text" v-model="name" class="form-control" required>
           </div>
           <div class="mb-3">
             <label class="form-label">Password</label>
@@ -59,6 +59,8 @@ export default {
       try {
         const response = await fetch('http://127.0.0.1:5000/signup', {
           method: 'POST',
+          mode: 'cors',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
@@ -72,16 +74,19 @@ export default {
         });
         if (response.status === 201) {
           const data = await response.json();
+          alert("User created successfully");
           alert(data.message);
           if (this.$route.path != '/login') {
             this.$router.push('/login')
             this.closeCard()
           }
         } else if (response.status === 409) {
-          alert(data.message);
+          const data = await response.json();
+          alert(data.msg);
         }
       } catch (error) {
         console.error(error);
+        alert("Something went wrong. Please try again later.");
       }
     },
   }

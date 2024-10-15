@@ -47,22 +47,40 @@ export default {
         },
         async submitForm() {
             try {
-                const response = await axios.post('http://127.0.0.1:5000/api/login', {
-                    email: this.email,
-                    password: this.password
-                },
+                // create operation
+                const response = await fetch('http://127.0.0.1:5000/api/login',
                     {
-                        withCredentials: true,
-                    }
-                )
-                console.log(response)
+                        method: 'POST',
+                        mode: 'cors',
+                        credentials: 'include',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            email: this.email,
+                            password: this.password
+                        })
+                    });
                 if (!response.status == 200) {
-                    alert(response.data.error);
-                    throw new Error(response.data.error);
+                    const data = await response.json();
+                    alert(data.error);
+                    throw new Error(data.error);
                 }
                 else {
-                    alert('Login success!');
-                    this.$router.push('/admin');
+                    const data = await response.json();
+                    localStorage.setItem('jwt', data.access_token);
+                    localStorage.setItem('role', data.role);
+                    console.log(data);
+                    this.$store.commit('setAuthenticatedUser', data);
+                    if(data.role==='admin'){
+                        this.$router.push('/admin');
+                    }
+                    else if(data.role==='manager'){
+                        this.$router.push('/manager');
+                    }
+                    else if(data.role==='user'){
+                        this.$router.push('/user');
+                    }
                 }
             } catch (error) {
                 console.error('Fetch error:', error);

@@ -92,161 +92,149 @@ export default {
     data() {
         return {
             cartItemsCount: 3,
-            picUpdate:false,
-            profilePic:null,
-            query:'',
-            checkedValue:-1 // Replace this with the actual count of items in your shopping cart
+            picUpdate: false,
+            profilePic: null,
+            query: '',
+            checkedValue: -1 // Replace this with the actual count of items in your shopping cart
         };
-    },    
+    },
     methods: {
         handleFileUpload(event) {
             this.profilePic = event.target.files[0];
-        },         
-        home(){
-            if(this.$route.path!='/admin'){
+        },
+        home() {
+            if (this.$route.path != '/admin') {
                 this.$router.push('/admin')
             }
         },
-        change(){
-            if(this.picUpdate==false){
-                this.picUpdate=true
+        change() {
+            if (this.picUpdate == false) {
+                this.picUpdate = true
             }
         },
         async searchByCat(catName, catId) {
-            this.checkedValue=catId;
+            this.checkedValue = catId;
             try {
-                const response = await fetch('http://127.0.0.1:5000/search/by/catgory',{
-                  method: 'POST',
-                  headers: {
-                    
-                    'Content-type': 'application/json'
-                  },
-                  body: JSON.stringify({
-                      "query": catName
+                const response = await fetch('http://127.0.0.1:5000/search/by/catgory', {
+                    method: 'POST',
+                    headers: {
+
+                        'Content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        "query": catName
                     }),
                 });
                 if (response.status === 200) {
-                  const data = await response.json();
-                  this.$store.commit('setProducts', data.pro)
-                  console.log(data.resource)
-              } else {
-                  const data = await response.json();
-                  alert(data.message);
+                    const data = await response.json();
+                    this.$store.commit('setProducts', data.pro)
+                    console.log(data.resource)
+                } else {
+                    const data = await response.json();
+                    alert(data.message);
                 }
-              } catch (error) {
+            } catch (error) {
                 console.error(error);
-              }
+            }
         },
-        createCat(){
-            if(this.$route.path!='/admin/cat/create'){
+        createCat() {
+            if (this.$route.path != '/admin/cat/create') {
                 this.$router.push('/admin/cat/create')
             }
         },
-        editCat(id){
-            if(this.$route.path!='/admin/cat/edit/'+id){
-                this.$router.push('/admin/cat/edit/'+id)
+        editCat(id) {
+            if (this.$route.path != '/admin/cat/edit/' + id) {
+                this.$router.push('/admin/cat/edit/' + id)
             }
         },
-        createPro(){
-            if(this.$route.path!='/admin/pro/create'){
+        createPro() {
+            if (this.$route.path != '/admin/pro/create') {
                 this.$router.push('/admin/pro/create')
             }
         },
-        managers(){
-            if(this.$route.path!='/admin/managers'){
+        managers() {
+            if (this.$route.path != '/admin/managers') {
                 this.$router.push('/admin/managers')
             }
         },
-        notifi(){
-            if(this.$route.path!='/admin/notifications'){
+        notifi() {
+            if (this.$route.path != '/admin/notifications') {
                 this.$router.push('/admin/notifications')
             }
         },
         async logout() {
-            try {
-              const response = await fetch('http://127.0.0.1:5000/logout', {
-                method: 'GET',
-                headers: {
-                  
-                },
-              });
-              if (response.status === 200) {
-                const data = await response.json();
-                this.$store.commit('setAuthenticatedUser', '')
-                if(this.$route.path!='/'){
-                    this.$router.push('/')
-                }                
-              } else {
-                const data = await response.json();
-                alert(data.message);
-              }
-            } catch (error) {
-              console.error(error);
+            localStorage.removeItem('jwt');
+            localStorage.removeItem('role');
+            if (this.$route.path != '/') {
+                this.$router.push('/')
             }
-          },        
-        stats(){
-            if(this.$route.path!='/admin/report'){
+        },
+        stats() {
+            if (this.$route.path != '/admin/report') {
                 this.$router.push('/admin/report')
             }
         },
         async search() {
             try {
-              const response = await fetch('http://127.0.0.1:5000/search/for',{
-                method: 'POST',
-                headers: {
-                  
-                  'Content-type': 'application/json'
-                },
-                body: JSON.stringify({
-                    "query": this.query
-                  }),
-              });
-              if (response.status === 200) {
-                const data = await response.json();
-                console.log(data.cat, "searched for category")
-                this.$store.commit('setCategories', data.cat)
-                this.$store.commit('setProducts', data.pro)
-            } else {
-                const data = await response.json();
-                alert(data.message);
-              }
+                const response = await fetch('http://127.0.0.1:5000/search/for', {
+                    method: 'POST',
+                    headers: {
+
+                        'Content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        "query": this.query
+                    }),
+                });
+                if (response.status === 200) {
+                    const data = await response.json();
+                    console.log(data.cat, "searched for category")
+                    this.$store.commit('setCategories', data.cat)
+                    this.$store.commit('setProducts', data.pro)
+                } else {
+                    const data = await response.json();
+                    alert(data.message);
+                }
             } catch (error) {
-              console.error(error);
+                console.error(error);
             }
-          }, 
+        },
         async updatePic() {
             const formData = new FormData();
             formData.append('image', this.profilePic);
             try {
-              const response = await fetch('http://127.0.0.1:5000/update/profile/'+this.$store.state.authenticatedUser.id,{
-                method: 'PUT',
-                headers: {
-                  
-                },
-                body: formData,
-              });
-              if (response.status === 201) {
-                const data = await response.json();
-                console.log(data.resource)
-                this.$store.commit('setAuthenticatedUser', data.resource)
-                this.picUpdate=false
-            } else {
-                alert(data.message);
-              }
+                const response = await fetch('http://127.0.0.1:5000/update/profile/' + this.$store.state.authenticatedUser.id, {
+                    method: 'PUT',
+                    mode: 'cors',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'multipart/form-data',
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt')
+                    },
+                    body: formData,
+                });
+                if (response.status === 201) {
+                    const data = await response.json();
+                    console.log(data.resource)
+                    this.$store.commit('setAuthenticatedUser', data.resource)
+                    this.picUpdate = false
+                } else {
+                    alert(data.message);
+                }
             } catch (error) {
-              console.error(error);
+                console.error(error);
             }
-          }
+        }
     },
-    mounted(){
-        // const source = new EventSource("/stream");
-        // source.addEventListener('notifyadmin', event => {
-        //   let data = JSON.parse(event.data);
-        //   alert(data.message)
-        // }, false);
+    mounted() {
+        const source = new EventSource("/stream");
+        source.addEventListener('notifyadmin', event => {
+          let data = JSON.parse(event.data);
+          alert(data.message)
+        }, false);
         this.$store.dispatch('fetchCategories')
-        // this.$store.dispatch('fetchAuthUser')
-        // this.$store.dispatch('fetchNoti')
+        this.$store.dispatch('fetchAuthUser')
+        this.$store.dispatch('fetchNoti')
     }
 }
 </script>
