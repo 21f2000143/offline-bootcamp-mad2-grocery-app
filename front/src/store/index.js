@@ -132,10 +132,10 @@ const store = createStore({
       try {
         const response = await fetch('http://127.0.0.1:5000/get/cart/items', {
           method: 'GET',
+          mode: 'cors',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            withCredentials: true,
-            credentials: 'include'
           },
         });
         if (response.status === 200) {
@@ -154,10 +154,10 @@ const store = createStore({
       try {
         const response = await fetch('http://127.0.0.1:5000/get/products', {
           method: 'GET',
+          mode: 'cors',
+          credentials: 'include',
           headers: {
             'Content-Type': 'application/json',
-            withCredentials: true,
-            credentials: 'include'
           },
         });
         if (response.status === 200) {
@@ -174,14 +174,12 @@ const store = createStore({
     },
     async fetchAuthUser({ commit }) {
       try {
-        const csrf = document.cookie.match(/XSRF-TOKEN=([\w-]+)/)[1];
-        const xsrf = document.cookie.match(/_csrf=([\w-]+)/)[1];
-        const response = await axios.get('http://127.0.0.1:5000/auth/user', {
-          withCredentials: true,
+        const response = await fetch('http://127.0.0.1:5000/auth/user', {
+          method: 'GET',
+          credentials: include,
+          mode: 'cors',
           headers: {
-            'Content-Type': 'application/json',
-            'X-XSRF-TOKEN': csrf,
-            'X-CSRF-TOKEN': xsrf,
+            Authorization: `Bearer ${localStorage.getItem('jwt')}`,
           }
         });
         if (response.status === 200) {
@@ -223,6 +221,7 @@ const store = createStore({
         const response = await fetch('http://127.0.0.1:5000/get/all/noti', {
           method: 'GET',
           credentials: 'include',
+          mode: 'no-cors',
           headers: {
             'Content-Type': 'application/json',
           },

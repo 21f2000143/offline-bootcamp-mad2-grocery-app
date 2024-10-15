@@ -50,9 +50,11 @@ export default {
       try {
         const response = await fetch('http://127.0.0.1:5000/get/category/'+this.$route.params.id,{
           method: 'GET',
+          mode: 'cors',
+          credentials: 'include',
           headers: {
-            
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('jwt')
           }
         });
         if (response.status === 200) {
@@ -70,9 +72,11 @@ export default {
         try {
           const response = await fetch('http://127.0.0.1:5000/update/category/'+this.$route.params.id,{
             method: 'PUT',
+            mode: 'cors',
+            credentials: 'include',
             headers: {
-              
               'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + localStorage.getItem('jwt')
             },
             body: JSON.stringify({
               name: this.name
@@ -102,9 +106,11 @@ export default {
         try {
           const response = await fetch('http://127.0.0.1:5000/delete/category/'+this.$route.params.id,{
             method: 'DELETE',
+            mode: 'cors',
+            credentials: 'include',
             headers: {
-              
               'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + localStorage.getItem('jwt')
             },
           });
           if (response.status === 201) {

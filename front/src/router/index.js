@@ -3,14 +3,17 @@ import { createRouter, createWebHistory } from 'vue-router';
 const routes = [
   {
     path: '/',
+    name: 'LandPage',
     component: () => import('../views/LandPage.vue'),
   },
   {
     path: '/login',
+    name: 'Login',
     component: () => import('../views/LoginPage.vue'),
   },
   {
     path: '/register',
+    name: 'Register',
     component: () => import('../views/RegisterPage.vue'),
   },
   {
@@ -125,5 +128,11 @@ const router = createRouter({
   history: createWebHistory(),
   routes,
 });
+// BAD
+router.beforeEach((to, from, next) => {
+  if (to.name !== 'Login' && !localStorage.getItem('jwt') && to.name !== 'LandPage' && to.name !== 'Register') next({ name: 'Login' })
+  // if the user is not authenticated, `next` is called twice
+  next()
+})
 
 export default router;
