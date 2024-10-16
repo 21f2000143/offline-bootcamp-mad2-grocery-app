@@ -80,7 +80,8 @@
 </template>
 
 <script>
-data() {
+export default {
+    data() {
     return {
         cartItemsCount: 3,
         picUpdate: false,
@@ -260,4 +261,5 @@ mounted(){
     this.$store.dispatch('fetchAuthUser')
     this.$store.dispatch('fetchCartItems')
 } 
+}
 </script>
