@@ -137,7 +137,7 @@ class AuthUser(Resource):
     def get(self):
         if not current_user:
             # if the user doesn't exist or password is wrong, reload the page
-            return jsonify({'error': 'wrong credentials'}), 404
+            return {'error': 'wrong credentials'}, 404
         else:
             user_data = {
                 'id': current_user.id,
@@ -147,33 +147,28 @@ class AuthUser(Resource):
                     current_user.image
                 ).decode('utf-8') if current_user.image else None
             }
-            return jsonify({'message': 'User login successfully',
-                            'resource': user_data}), 200
+            return {'message': 'User login successfully',
+                            'resource': user_data}, 200
 
     @jwt_required()
     def put(self, id):
-        if isinstance(id, int):
-            if request.method == 'PUT':
-                user = User.query.filter_by(id=id).first()
-                if user:
-                    # Handle file upload
-                    user.image = request.files['image'].read()
-                    db.session.commit()
-                    user_data = {
-                        'id': user.id,
-                        'role': user.role,
-                        'email': user.email,
-                        'auth_token': current_user.is_authenticated,
-                        # Assuming image is stored as a base64-encoded string
-                        'image': base64.b64encode(user.image).decode('utf-8')
-                    }
-                    return {
-                        'message': f"User profile updated successfully in the database",
-                        'resource': user_data}, 201
-                else:
-                    return {'message': "Not found"}, 404
+        user = User.query.filter_by(id=id).first()
+        if user:
+            # Handle file upload
+            user.image = request.files['image'].read()
+            db.session.commit()
+            user_data = {
+                'id': user.id,
+                'role': user.role,
+                'email': user.email,
+                # Assuming image is stored as a base64-encoded string
+                'image': base64.b64encode(user.image).decode('utf-8')
+            }
+            return {
+                'message': f"User profile updated successfully in the database",
+                'resource': user_data}, 201
         else:
-            return '', 400
+            return {'message': "Not found"}, 404
 
 
 class DeleteMan(Resource):

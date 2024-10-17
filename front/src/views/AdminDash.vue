@@ -207,10 +207,9 @@ export default {
                     mode: 'cors',
                     credentials: 'include',
                     headers: {
-                        'Content-Type': 'multipart/form-data',
                         'Authorization': 'Bearer ' + localStorage.getItem('jwt')
                     },
-                    body: formData,
+                    body: formData
                 });
                 if (response.status === 201) {
                     const data = await response.json();
@@ -226,7 +225,7 @@ export default {
         }
     },
     mounted() {
-        const source = new EventSource("/stream");
+        const source = new EventSource("http://localhost:5000/stream");
         source.addEventListener('notifyadmin', event => {
           let data = JSON.parse(event.data);
           alert(data.message)

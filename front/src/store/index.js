@@ -176,7 +176,7 @@ const store = createStore({
       try {
         const response = await fetch('http://127.0.0.1:5000/auth/user', {
           method: 'GET',
-          credentials: include,
+          credentials: 'include',
           mode: 'cors',
           headers: {
             Authorization: `Bearer ${localStorage.getItem('jwt')}`,
@@ -221,9 +221,10 @@ const store = createStore({
         const response = await fetch('http://127.0.0.1:5000/get/all/noti', {
           method: 'GET',
           credentials: 'include',
-          mode: 'no-cors',
+          mode: 'cors',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + localStorage.getItem('jwt')
           },
         });
         if (response.status === 200) {
