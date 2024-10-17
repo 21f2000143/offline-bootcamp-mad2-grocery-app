@@ -21,6 +21,8 @@ _Flask + Vue.js Web Application Template_
 * Nodejs `For windows users:install for wsl` [visit link to download and setup](https://nodejs.org/en/download/package-manager)
 <img src="node-version.png" width="300" height="100" />
 * Vite `command line build tool` [visit link install](https://vite.dev/guide/)
+* Redis `In Memory Database Message Broker` [visit link install](https://redis.io/docs/latest/operate/oss_and_stack/install/)
+* MailHog `Tool for testing mail server` [visit link install](https://github.com/mailhog/MailHog)
 * Vue Devtools `Search in browser web store and add the extension`
 
 ### Frameworks
@@ -28,3 +30,13 @@ _Flask + Vue.js Web Application Template_
 * Vue Router `v^4` [link](https://router.vuejs.org/introduction.html)
 * PrimeVue `v^4` [link](https://primevue.org/introduction/)
 * Bootstrap `v^5` [link](https://getbootstrap.com/)
+* Vuex `v^4` [link](https://vuex.vuejs.org/)
+* Flask `v^3` [link](https://flask.palletsprojects.com/en/3.0.x/)
+* Flask-jwt-extended `v^3` [link](https://flask-jwt-extended.readthedocs.io/en/stable/)
+* Flask-Cors `v^3` [link](https://readthedocs.org/projects/flask-cors/downloads/pdf/latest/)
+* Flask-Restful `latest` [link](https://flask-restful.readthedocs.io/en/latest/)
+* Flask-Mail `latest` [link](https://flask-mail.readthedocs.io/en/latest/)
+* Flask-SSE `latest` [link](https://flask-sse.readthedocs.io/en/latest/)
+* Flask-SQLAlchemy `latest` [link](https://flask-sqlalchemy.palletsprojects.com/en/latest/)
+* Flask-Caching `latest` [link](https://flask-caching.readthedocs.io/en/latest/index.html)
+* Celery - Distributed Task Queue `stable` [link](https://docs.celeryq.dev/en/stable/)
