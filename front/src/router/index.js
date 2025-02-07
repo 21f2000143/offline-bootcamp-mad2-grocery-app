@@ -16,6 +16,16 @@ const routes = [
     name: "Register",
     component: () => import("../views/RegisterPage.vue"),
   },
+  {
+    path: "/doctor/login",
+    name: "LoginDoc",
+    component: () => import("../views/DoctorLoginPage.vue"),
+  }
+  {
+    path: "/doctor/register",
+    name: "RegisterDoc",
+    component: () => import("../views/DoctorRegisterPage.vue"),
+  },
   // Catch-all route for undefined paths
   {
     path: "/:pathMatch(.*)*", // Use '*' for Vue Router 3
@@ -65,69 +75,69 @@ const routes = [
     ],
   },
   {
-    path: "/manager",
-    component: () => import("../views/ManagerDash.vue"),
+    path: "/doctor",
+    component: () => import("../views/DoctorDash.vue"),
     children: [
       {
-        path: "/manager",
+        path: "/doctor",
         component: () => import("../components/ProductCompo.vue"),
       },
       {
-        path: "/manager/cat/create",
+        path: "/doctor/cat/create",
         component: () => import("../components/CreateCatCompo.vue"),
       },
       {
-        path: "/manager/cat/edit/:id",
+        path: "/doctor/cat/edit/:id",
         component: () => import("../components/EditCatCompo.vue"),
       },
       {
-        path: "/manager/pro/create",
+        path: "/doctor/pro/create",
         component: () => import("../components/CreateProCompo.vue"),
       },
       {
-        path: "/manager/pro/edit/:id",
+        path: "/doctor/pro/edit/:id",
         component: () => import("../components/EditProCompo.vue"),
       },
       {
-        path: "/manager/notifications",
+        path: "/doctor/notifications",
         component: () => import("../components/NotifiManCompo.vue"),
       },
       {
-        path: "/manager/report",
+        path: "/doctor/report",
         component: () => import("../components/ReportCompo.vue"),
       },
     ],
   },
   {
-    path: "/user",
-    component: () => import("../views/UserDash.vue"),
+    path: "/patient",
+    component: () => import("../views/PatientDash.vue"),
     children: [
       {
-        path: "/user",
+        path: "/patient",
         component: () => import("../components/ProductUserCompo.vue"),
       },
       {
-        path: "/user/CartCompo",
+        path: "/patient/CartCompo",
         component: () => import("../components/CartCompo.vue"),
       },
       {
-        path: "/user/your/orders",
+        path: "/patient/your/orders",
         component: () => import("../components/OrderCompo.vue"),
       },
       {
-        path: "/user/pro/create",
+        path: "/patient/pro/create",
         component: () => import("../components/CreateProCompo.vue"),
       },
       {
-        path: "/user/pro/edit",
+        path: "/patient/pro/edit",
         component: () => import("../components/EditProCompo.vue"),
       },
       {
-        path: "/user/notifications",
+        path: "/patient/notifications",
         component: () => import("../components/NotifiCompo.vue"),
       },
       {
-        path: "/user/report",
+        path: "/patient/report",
         component: () => import("../components/ReportCompo.vue"),
       },
     ],
@@ -144,7 +154,8 @@ router.beforeEach((to, from, next) => {
     to.name !== "Login" &&
     !localStorage.getItem("jwt") &&
     to.name !== "LandPage" &&
-    to.name !== "Register"
+    to.name !== "Register" &&
+    to.name !== "RegisterDoc"
   )
     next({ name: "Login" });
   // if the user is not authenticated, `next` is called twice

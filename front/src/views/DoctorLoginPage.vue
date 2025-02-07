@@ -63,8 +63,8 @@ export default {
           localStorage.setItem('refresh', data.refresh);
           console.log(data);
           this.$store.commit('setAuthenticatedUser', data);
-          if (data.role === 'patient') {
-            this.$router.push('/patient');
+          if (data.role === 'doctor') {
+            this.$router.push('/doctor');
           }
         }
       } catch (error) {
@@ -74,3 +74,4 @@ export default {
   }
 }
 </script>
+

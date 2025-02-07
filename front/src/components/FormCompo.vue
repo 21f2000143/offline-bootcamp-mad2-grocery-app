@@ -1,6 +1,6 @@
 <template>
   <div class="row justify-content-center m-3">
-    <div class="card bg-light" style="width: 18rem;">
+    <div class="card bg-light" style="width: 45rem;">
       <div class="card-body">
         <div class="d-flex justify-content-end">
           <!-- Cross button to close the card -->

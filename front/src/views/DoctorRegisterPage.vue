@@ -1,7 +1,7 @@
 <template>
   <FormCompo>
     <template v-slot:form>
-      <h5 class="card-title">Register Patient</h5>
+      <h5 class="card-title">Register Doctor</h5>
       <form @submit.prevent="submitForm">
         <div class="mb-3">
           <label class="form-label">Username</label>
@@ -34,8 +34,12 @@
           <input type="text" v-model="contact" class="form-control" required>
         </div>
         <div class="mb-3">
-          <label class="form-label">Medical History</label>
-          <textarea class="form-control" v-model="medical_history" type="text" id="medical_history" name="medical_history" required></textarea>
+          <label class="form-label">Specialization</label>
+          <input type="text" v-model="specialization" class="form-control" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Experience (years)</label>
+          <input type="number" v-model="experience" class="form-control" required>
         </div>
         <div class="mb-3">
           <label class="form-label">Password</label>
@@ -48,11 +52,11 @@
 </template>
 
 <script>
-
 import FormCompo from '../components/FormCompo.vue';
 import home from '../utils/navigation.js';
+
 export default {
-  name: 'RegisterPatientPage',
+  name: 'RegisterDoctorPage',
   components: {
     FormCompo
   },
@@ -64,7 +68,8 @@ export default {
       age: null,
       gender: null,
       contact: '',
-      medical_history: '',
+      specialization: '',
+      experience: null,
       password: '',
       message: ''
     }
@@ -75,7 +80,7 @@ export default {
     },
     async submitForm() {
       try {
-        const response = await fetch('http://127.0.0.1:8000/register-patient/', {
+        const response = await fetch('http://127.0.0.1:8000/register-doctor/', {
           method: 'POST',
           mode: 'cors',
           headers: {
@@ -88,13 +93,14 @@ export default {
             "age": this.age,
             "gender": this.gender,
             "contact": this.contact,
-            "medical_history": this.medical_history,
+            "specialization": this.specialization,
+            "experience": this.experience,
             "password": this.password
           }),
         });
         if (response.ok) {
           const data = await response.json();
-          alert("Patient registered successfully");
+          alert("Doctor registered successfully");
           if (this.$route.path != '/login') {
             this.$router.push('/login')
             this.home()
@@ -110,3 +116,4 @@ export default {
   }
 }
 </script>
+
