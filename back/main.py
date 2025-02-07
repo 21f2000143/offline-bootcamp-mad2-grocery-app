@@ -1,11 +1,11 @@
 # --- Imports Start here--- ###
 from flask import Flask, abort, make_response
-from flask import jsonify
 from flask import request
-from database import db
 import csv
 import io
+import redis
 import base64
+from database import db
 from models import (
     User,
     Product,
@@ -21,11 +21,15 @@ from flask_jwt_extended import (
     JWTManager,
     create_access_token,
     jwt_required,
-    current_user
+    current_user,
+    get_jwt_identity,
+    verify_jwt_in_request,
+    get_jwt
 )
 from flask_cors import CORS
 from celery.schedules import crontab
 from config import LocalDevelopmentConfig
+from config import ACCESS_EXPIRES
 from flask_restful import Resource, Api
 from celery import Celery
 from send_mail import init_mail
@@ -37,12 +41,13 @@ from sqlalchemy import or_
 
 app, api, jwt = None, None, None
 
-
 # ---- Flask app factory ---- #
+
+
 def create_app():
     app = Flask(__name__)
-    app.config.from_object(LocalDevelopmentConfig)
     CORS(app, origins=['http://localhost:5173'], supports_credentials=True)
+    app.config.from_object(LocalDevelopmentConfig)
     jwt = JWTManager(app)
     db.init_app(app)
     app.app_context().push()
@@ -77,7 +82,6 @@ celery.conf.timezone = 'Asia/Kolkata'
 # identity when creating JWTs and converts it to a JSON serializable format.
 @jwt.user_identity_loader
 def user_identity_lookup(user):
-    print(user)
     return user.id
 
 
@@ -88,7 +92,23 @@ def user_identity_lookup(user):
 @jwt.user_lookup_loader
 def user_lookup_callback(_jwt_header, jwt_data):
     identity = jwt_data["sub"]
-    return User.query.filter_by(id=identity).first()
+    return User.query.filter_by(id=identity).one_or_none()
+
+
+# Setup our redis connection for storing the blocklisted tokens. You will probably
+# want your redis instance configured to persist data to disk, so that a restart
+# does not cause your application to forget that a JWT was revoked.
+jwt_redis_blocklist = redis.StrictRedis(
+    host="localhost", port=6379, db=0, decode_responses=True
+)
+
+
+# Callback function to check if a JWT exists in the redis blocklist
+@jwt.token_in_blocklist_loader
+def check_if_token_is_revoked(jwt_header, jwt_payload: dict):
+    jti = jwt_payload["jti"]
+    token_in_redis = jwt_redis_blocklist.get(jti)
+    return token_in_redis is not None
 
 
 # ------- Admin user through code ---#
@@ -102,12 +122,13 @@ if admin_exist is None:
 
 
 # ------- Custom Decorator for role verification ----#
-def role_required(role):
+def role_required(roles: list):
     def decorator(f):
         @wraps(f)
+        @jwt_required()
         def decorated_function(*args, **kwargs):
-            if current_user is None or current_user.role != role:
-                return {'message': 'You role is not authorized'}, 401
+            if current_user is None or current_user.role not in roles:
+                return {'msg': 'You role is not authorized'}, 401
             return f(*args, **kwargs)
         return decorated_function
     return decorator
@@ -125,16 +146,28 @@ class LoginResource(Resource):
         if user:
             if check_password_hash(user.password, password):
                 access_token = create_access_token(identity=user)
-                response = jsonify(id=user.id, role=user.role,
-                                   email=user.email, access_token=access_token)
-                return response
-            return jsonify(error="Authentication failed"), 401
-        return jsonify(error="wrong credentials"), 404
+                return {
+                    'id': user.id,
+                    'role': user.role,
+                    'email': user.email,
+                    'access_token': access_token,
+                    'image': (base64.b64encode(user.image).decode('utf-8') if user.image else None)
+                }
+            return {'error': "Authentication failed"}, 401
+        return {'error': "wrong credentials"}, 404
+
+    @jwt_required()
+    def delete(self):
+        jti = get_jwt()["jti"]
+        jwt_redis_blocklist.set(jti, "", ex=ACCESS_EXPIRES)
+        return {'message': "logout successful"}, 200
 
 
 class AuthUser(Resource):
-    @jwt_required()
     def get(self):
+        verify_jwt_in_request()
+        id = get_jwt_identity()
+        current_user = User.query.filter_by(id=id).first()
         if not current_user:
             # if the user doesn't exist or password is wrong, reload the page
             return {'error': 'wrong credentials'}, 404
@@ -147,8 +180,8 @@ class AuthUser(Resource):
                     current_user.image
                 ).decode('utf-8') if current_user.image else None
             }
-            return {'message': 'User login successfully',
-                            'resource': user_data}, 200
+            return {'msg': 'User login successfully',
+                    'resource': user_data}, 200
 
     @jwt_required()
     def put(self, id):
@@ -165,27 +198,26 @@ class AuthUser(Resource):
                 'image': base64.b64encode(user.image).decode('utf-8')
             }
             return {
-                'message': f"User profile updated successfully in the database",
+                'msg': f"User profile updated successfully in the database",
                 'resource': user_data}, 201
         else:
-            return {'message': "Not found"}, 404
+            return {'msg': "Not found"}, 404
 
 
 class DeleteMan(Resource):
-    @role_required('admin')
+    @role_required(['admin'])
     @jwt_required()
     def delete(self, id):
         man = User.query.filter_by(id=id).first()
         if man:
             db.session.delete(man)
             db.session.commit()
-            return jsonify({'message': 'Deleted manager', 'resource': id}), 200
+            return {'msg': 'Deleted manager', 'resource': id}, 200
         else:
-            return jsonify({'message': 'Not found'}), 404
+            return {'msg': 'Not found'}, 404
 
 
 class Signup(Resource):
-    @jwt_required()
     def post(self):
         data = request.get_json()
         user = User.query.filter_by(email=data["email"]).first()
@@ -194,7 +226,7 @@ class Signup(Resource):
 
         admin = User.query.filter_by(role='admin').first()
         if user or exist_req:  #
-            return {'msg': 'User already exists, Try with another email'}, 409
+            return {'error': 'User already exists, Try with another email'}, 409
         if data["role"] == 'manager':
             message = f"{data['email']},{data['name']},{data['role']}, \
             {data['password']}"
@@ -206,7 +238,7 @@ class Signup(Resource):
                                         timestamp=datetime.now())
             db.session.add(requested)
             db.session.commit()
-            return {'message': 'Created request, \
+            return {'msg': 'Created request, \
                             on result will send on mail'}, 201
         else:
             new_user = User(email=data["email"], name=data["name"],
@@ -218,9 +250,9 @@ class Signup(Resource):
                 "email": data["email"],
                 "name": data["name"],
                 "role": data["role"],
-                "auth-token": current_user.is_authenticated
+                "auth-token": "hello"
             }
-            return {'message': 'User registered successfully',
+            return {'msg': 'User registered successfully',
                     'data': inserted_data}, 201
 
     @jwt_required()
@@ -229,9 +261,9 @@ class Signup(Resource):
         if man:
             db.session.delete(man)
             db.session.commit()
-            return {'message': 'Deleted manager', 'resource': id}, 200
+            return {'msg': 'Deleted manager', 'resource': id}, 200
         else:
-            return {'message': 'Not found'}, 404
+            return {'msg': 'Not found'}, 404
 
 # --------------- AUTH END HERE ------------------------###
 
@@ -252,9 +284,6 @@ class CatListResource(Resource):
 
 
 class CategoryResource(Resource):
-    @role_required('admin')
-    @role_required('manager')
-    @jwt_required()
     def get(self, id):
         category = Category.query.get(id)
         if category:
@@ -266,6 +295,7 @@ class CategoryResource(Resource):
             return {'error': 'Category not found'}, 404
 
     @jwt_required()
+    @role_required(['admin', 'manager'])
     def put(self, id):
         data = request.get_json()
         category = Category.query.filter_by(id=id).first()
@@ -283,16 +313,16 @@ class CategoryResource(Resource):
             noti_data = {
                 'id': requested.id,
                 'state': requested.status,
-                'message': requested.message,
+                'msg': requested.message,
                 'sender': requested.sender,
-                'timestamp': requested.timestamp.strftime('%Y-%m-%d'),
+                'timestamp': requested.timestamp.strftime("%Y-%m-%d"),
             }
-            return {'message': 'Created request', 'resource': noti_data}, 201
+            return {'msg': 'Created request', 'resource': noti_data}, 201
         else:
             category.name = data['name']
             db.session.commit()
             return {
-                'message': f"Category {data['name']} update successfully in database",
+                'msg': f"Category {data['name']} update successfully in database",
                 'resource': {
                     'id': category.id,
                     'name': category.name}
@@ -316,11 +346,11 @@ class CategoryResource(Resource):
                 noti_data = {
                     'id': requested.id,
                     'state': requested.status,
-                    'message': requested.message,
+                    'msg': requested.message,
                     'sender': requested.sender,
-                    'timestamp': requested.timestamp.strftime('%Y-%m-%d'),
+                    'timestamp': requested.timestamp.strftime("%Y-%m-%d"),
                 }
-                return {'message': 'Created request', 'resource': noti_data}, 201
+                return {'msg': 'Created request', 'resource': noti_data}, 201
             else:
                 products = Product.query.filter_by(
                     category_id=int(id)).all()
@@ -335,13 +365,13 @@ class CategoryResource(Resource):
                 db.session.delete(category)
                 db.session.commit()
                 return {
-                    'message': f"Category { category.name } Deleted \
+                    'msg': f"Category { category.name } Deleted \
                     successfully from database",
                     'resource': {
                         'id': category.id,
                         'name': category.name}
                 }, 201
-        return {'message': "Not found"}, 404
+        return {'msg': "Not found"}, 404
 
     @jwt_required()
     def post(self):
@@ -362,19 +392,19 @@ class CategoryResource(Resource):
                     noti_data = {
                         'id': requested.id,
                         'state': requested.status,
-                        'message': requested.message,
+                        'msg': requested.message,
                         'sender': requested.sender,
-                        'timestamp': requested.timestamp.strftime('%Y-%m-%d'),
+                        'timestamp': requested.timestamp.strftime("%Y-%m-%d"),
                     }
                     return {
-                        'message': 'Created request',
+                        'msg': 'Created request',
                         'resource': noti_data}, 201
                 else:
                     category = Category(name=data['name'])
                     db.session.add(category)
                     db.session.commit()
                     return {
-                        'message': f"Category {data['name']} created successfully",
+                        'msg': f"Category {data['name']} created successfully",
                         'resource': {
                             'id': category.id,
                             'name': category.name}
@@ -394,8 +424,8 @@ class ProListResource(Resource):
                 'id': new_product.id,
                 'quantity': new_product.quantity,
                 'name': new_product.name,
-                'manufacture': new_product.manufacture,
-                'expiry': new_product.expiry,
+                'manufacture': new_product.manufacture.strftime("%Y-%m-%d"),
+                'expiry': new_product.expiry.strftime("%Y-%m-%d"),
                 'description': new_product.description,
                 'rpu': new_product.rpu,
                 'unit': new_product.unit,
@@ -414,15 +444,16 @@ class ProductResource(Resource):
                 'id': product.id,
                 'quantity': product.quantity,
                 'name': product.name,
-                'manufacture': product.manufacture,
+                'manufacture': product.manufacture.strftime("%Y-%m-%d"),
                 'description': product.description,
-                'expiry': product.expiry,
+                'expiry': product.expiry.strftime("%Y-%m-%d"),
                 'rpu': product.rpu,
                 'unit': product.unit,
                 # Assuming image is stored as a base64-encoded string
-                'image': base64.b64encode(product.image).decode('utf-8')
+                'image': base64.b64encode(product.image).decode('utf-8'),
+                'category_id': product.category_id
             }
-            return jsonify(prod_data), 200
+            return prod_data, 200
         else:
             abort(404, message="Not found")
 
@@ -446,18 +477,18 @@ class ProductResource(Resource):
                 noti_data = {
                     'id': requested.id,
                     'state': requested.status,
-                    'message': requested.message,
+                    'msg': requested.message,
                     'sender': requested.sender,
-                    'timestamp': requested.timestamp.strftime('%Y-%m-%d'),
+                    'timestamp': requested.timestamp.strftime("%Y-%m-%d"),
                 }
-                return {'message': 'Created request', 'resource': noti_data}, 201
+                return {'msg': 'Created request', 'resource': noti_data}, 201
             else:
                 product.name = request.form['name']
                 product.quantity = int(request.form['quantity'])
                 product.manufacture = datetime.strptime(
-                    request.form['manufacture'], '%Y-%m-%d')
+                    request.form['manufacture'], "%Y-%m-%d")
                 product.expiry = datetime.strptime(
-                    request.form['expiry'], '%Y-%m-%d')
+                    request.form['expiry'], "%Y-%m-%d")
                 product.rpu = float(request.form['rpu'])
                 product.category_id = float(request.form['category_id'])
                 product.unit = request.form['unit']
@@ -470,18 +501,19 @@ class ProductResource(Resource):
                     'id': product.id,
                     'quantity': product.quantity,
                     'name': product.name,
-                    'manufacture': product.manufacture,
-                    'expiry': product.expiry,
+                    'manufacture': product.manufacture.strftime("%Y-%m-%d"),
+                    'expiry': product.expiry.datetime("%Y-%m-%d"),
                     'description': product.description,
                     'rpu': product.rpu,
                     'unit': product.unit,
                     # Assuming image is stored as a base64-encoded string
-                    'image': base64.b64encode(product.image).decode('utf-8')
+                    'image': base64.b64encode(product.image).decode('utf-8'),
+                    'category_id': product.category_id
                 }
-                return jsonify({'message': f"Product {request.form['name']} updated successfully in the database",
-                                'resource': prod_data}), 201
+                return {'msg': f"Product {request.form['name']} updated successfully in the database",
+                        'resource': prod_data}, 201
         else:
-            return jsonify({'message': "Not found"}), 404
+            return {'msg': "Not found"}, 404
 
     @jwt_required()
     def delete(self, id):
@@ -501,11 +533,11 @@ class ProductResource(Resource):
                 noti_data = {
                     'id': requested.id,
                     'state': requested.status,
-                    'message': requested.message,
+                    'msg': requested.message,
                     'sender': requested.sender,
-                    'timestamp': requested.timestamp.strftime('%Y-%m-%d'),
+                    'timestamp': requested.timestamp.strftime("%Y-%m-%d"),
                 }
-                return jsonify({'message': 'Created request', 'resource': noti_data}), 201
+                return {'msg': 'Created request', 'resource': noti_data}, 201
             else:
                 carts = Cart.query.filter_by(product_id=product.id).all()
                 for cart in carts:
@@ -513,14 +545,14 @@ class ProductResource(Resource):
                     db.session.commit()
                 db.session.delete(product)
                 db.session.commit()
-                return jsonify({'message': f"Product {product.name} deleted successfully from the database", 'resource': id}), 201
-        return jsonify({'message': "Not found"}), 404
+                return {'msg': f"Product {product.name} deleted successfully from the database", 'resource': id}, 201
+        return {'msg': "Not found"}, 404
 
     @jwt_required()
     def post(self):
         name_exist = Product.query.filter_by(name=request.form['name']).first()
         if name_exist:
-            return {'message': "Resource already exists"}, 409
+            return {'msg': "Resource already exists"}, 409
         else:
             if current_user.role == 'manager':
                 admin = User.query.filter_by(role='admin').first()
@@ -538,17 +570,17 @@ class ProductResource(Resource):
                 noti_data = {
                     'id': requested.id,
                     'state': requested.status,
-                    'message': requested.message,
+                    'msg': requested.message,
                     'sender': requested.sender,
-                    'timestamp': requested.timestamp.strftime('%Y-%m-%d'),
+                    'timestamp': requested.timestamp.strftime("%Y-%m-%d"),
                 }
-                return jsonify({'message': 'Created request', 'resource': noti_data}), 201
+                return {'msg': 'Created request', 'resource': noti_data}, 201
             else:
                 name = request.form['name']
                 quantity = int(request.form['quantity'])
                 manufacture = datetime.strptime(
-                    request.form['manufacture'], '%Y-%m-%d')
-                expiry = datetime.strptime(request.form['expiry'], '%Y-%m-%d')
+                    request.form['manufacture'], "%Y-%m-%d")
+                expiry = datetime.strptime(request.form['expiry'], "%Y-%m-%d")
                 rpu = float(request.form['rpu'])
                 category_id = float(request.form['category_id'])
                 unit = request.form['unit']
@@ -571,8 +603,8 @@ class ProductResource(Resource):
                     'id': new_product.id,
                     'quantity': new_product.quantity,
                     'name': new_product.name,
-                    'manufacture': new_product.manufacture,
-                    'expiry': new_product.expiry,
+                    'manufacture': new_product.manufacture.strftime("%Y-%m-%d"),
+                    'expiry': new_product.expiry.strftime("%Y-%m-%d"),
                     'description': new_product.description,
                     'rpu': new_product.rpu,
                     'unit': new_product.unit,
@@ -586,6 +618,7 @@ class ProductResource(Resource):
 
 
 class OrderListResource(Resource):
+    @jwt_required()
     def get(self):
         try:
             orders = Order.query.filter_by(user_id=current_user.id).all()
@@ -609,6 +642,7 @@ class OrderListResource(Resource):
 
 
 class OrderResource(Resource):
+    @jwt_required()
     def put(self, id):
         data = request.get_json()
         order = Order.query.filter_by(id=id).first()
@@ -631,7 +665,7 @@ class OrderResource(Resource):
         product = Product.query.filter_by(name=order.product_name).first()
         product.rate = avg_rate
         db.session.commit()
-        return {'message': 'Created request', 'resource': cat}, 201
+        return {'msg': 'Created request', 'resource': cat}, 201
 
     @jwt_required()
     def post(self):
@@ -650,9 +684,11 @@ class OrderResource(Resource):
 
 
 class CartListResource(Resource):
+    @jwt_required()
     def get(self):
         cart_items = Cart.query.filter_by(user_id=current_user.id).all()
         cart_list = []
+        print(current_user.id)
         for product_exist in cart_items:
             cart = {
                 'id': product_exist.id,
@@ -663,7 +699,8 @@ class CartListResource(Resource):
                 'user_id': product_exist.user_id
             }
             cart_list.append(cart)
-        return jsonify(cart_list), 200
+        print(cart_list)
+        return cart_list, 200
 
 
 class CartResource(Resource):
@@ -691,7 +728,39 @@ class CartResource(Resource):
         cart_item = Cart.query.filter_by(id=id).first()
         db.session.delete(cart_item)
         db.session.commit()
-        return {'message': "remove item",
+        return {'message': "remove item", "resource": id}, 200
+
+
+class CartDecrementResource(Resource):
+    @jwt_required()
+    def put(self, id):
+        # will pass operation from front for incre or decre
+        cart_item = Cart.query.filter_by(id=id).first()
+        if cart_item.quantity > 1:
+            cart_item.quantity -= 1
+            db.session.commit()
+            cart_list = {
+                'id': cart_item.id,
+                'product_id': cart_item.product_id,
+                'product_name': cart_item.product_name,
+                'rpu': cart_item.rpu,
+                'quantity': cart_item.quantity,
+                'user_id': cart_item.user_id
+            }
+            return {"message": "added to cart",
+                    'resource': cart_list}, 201
+        else:
+            cart_item = Cart.query.filter_by(id=id).first()
+            db.session.delete(cart_item)
+            db.session.commit()
+            return {'message': "remove item", "resource": id}, 200
+
+    @jwt_required()
+    def delete(self, id):
+        cart_item = Cart.query.filter_by(id=id).first()
+        db.session.delete(cart_item)
+        db.session.commit()
+        return {'msg': "remove item",
                 "resource": id}, 200
 
     @jwt_required()
@@ -712,8 +781,8 @@ class CartResource(Resource):
                     'quantity': product_exist.quantity,
                     'user_id': product_exist.user_id
                 }
-                return jsonify({"message": "added to cart", 'resource': cart_list}), 209
-            return jsonify({"message": "No more qty available"}), 200
+                return {"message": "added to cart", 'resource': cart_list}, 209
+            return {"message": "No more qty available"}, 200
         else:
             if product.quantity > 0:
                 cart_item = Cart(product_id=product.id, product_name=product.name,
@@ -728,9 +797,9 @@ class CartResource(Resource):
                     'quantity': cart_item.quantity,
                     'user_id': cart_item.user_id
                 }
-                return jsonify({"message": "added to cart", 'resource': cart_list}), 201
+                return {"message": "added to cart", 'resource': cart_list}, 201
             else:
-                return jsonify({"message": "No more qty available"}), 200
+                return {"message": "No more qty available"}, 200
 
 
 class ManListResource(Resource):
@@ -746,7 +815,7 @@ class ManListResource(Resource):
                 'role': man.role,
                 'name': man.name,
                 'email': man.email,
-                'doj': man.doj.strftime('%Y-%m-%d'),
+                'doj': man.doj.strftime("%Y-%m-%d"),
                 'exp': f"{(datetime.now() - man.doj).total_seconds() / (365.25 * 24 * 3600):.2f} years of experience",
                 # Assuming image is stored as a base64-encoded string
                 'image': base64.b64encode(man.image).decode('utf-8') if man.image else None
@@ -765,9 +834,9 @@ class NotListResource(Resource):
                 noti_data = {
                     'id': noti.id,
                     'state': noti.status,
-                    'message': noti.message,
+                    'msg': noti.message,
                     'sender': noti.sender,
-                    'timestamp': noti.timestamp.strftime('%Y-%m-%d'),
+                    'timestamp': noti.timestamp.strftime("%Y-%m-%d"),
                 }
                 noti_list.append(noti_data)
             return {'resource': noti_list}, 200
@@ -779,9 +848,9 @@ class NotListResource(Resource):
                 noti_data = {
                     'id': noti.id,
                     'state': noti.status,
-                    'message': noti.message,
+                    'msg': noti.message,
                     'sender': noti.sender,
-                    'timestamp': noti.timestamp.strftime('%Y-%m-%d'),
+                    'timestamp': noti.timestamp.strftime("%Y-%m-%d"),
                 }
                 noti_list.append(noti_data)
             return {'resource': noti_list}, 200
@@ -792,16 +861,15 @@ class NotListResource(Resource):
         if req:
             req.status = 'declined'
             db.session.commit()
-            return {'message': 'Request declined'}, 200
+            return {'msg': 'Request declined'}, 200
         else:
-            return {'message': 'Not found'}, 404
+            return {'msg': 'Not found'}, 404
 
 
 class SearchCatResource(Resource):
     def post(self):
         data = request.get_json()
         query = data.get('query')
-
         # Search for products and categories based on the query
         products = Product.query.filter(or_(
             Product.name.ilike(f'%{query}%'),
@@ -820,8 +888,8 @@ class SearchCatResource(Resource):
                 'id': new_product.id,
                 'quantity': new_product.quantity,
                 'name': new_product.name,
-                'manufacture': new_product.manufacture,
-                'expiry': new_product.expiry,
+                'manufacture': new_product.manufacture.strftime("%Y-%m-%d"),
+                'expiry': new_product.expiry.strftime("%Y-%m-%d"),
                 'description': new_product.description,
                 'rpu': new_product.rpu,
                 'unit': new_product.unit,
@@ -838,7 +906,7 @@ class SearchCatResource(Resource):
                 'name': category.name,
             }
             categories_list.append(cat)
-        return jsonify({"cat": categories_list, 'pro': product_list}), 200
+        return {"cat": categories_list, 'pro': product_list}, 200
 
 
 class SearchResource(Resource):
@@ -862,8 +930,8 @@ class SearchResource(Resource):
                 'id': new_product.id,
                 'quantity': new_product.quantity,
                 'name': new_product.name,
-                'manufacture': new_product.manufacture,
-                'expiry': new_product.expiry,
+                'manufacture': new_product.manufacture.strftime("%Y-%m-%d"),
+                'expiry': new_product.expiry.strftime("%Y-%m-%d"),
                 'description': new_product.description,
                 'rpu': new_product.rpu,
                 'unit': new_product.unit,
@@ -880,12 +948,12 @@ class SearchResource(Resource):
                 'name': category.name,
             }
             categories_list.append(cat)
-        return jsonify({"cat": categories_list, 'pro': product_list}), 200
+        return {"cat": categories_list, 'pro': product_list}, 200
 
 
 class AdminManagerRequestResource(Resource):
     @jwt_required()
-    def get(self, id):
+    def put(self, id):
         req = RequestResponse.query.filter_by(id=id).first()
         if req:
             if req.type == 'manager':
@@ -899,7 +967,7 @@ class AdminManagerRequestResource(Resource):
                     'role': new_user.role,
                     'name': new_user.name,
                     'email': new_user.email,
-                    'doj': new_user.doj.strftime('%Y-%m-%d'),
+                    'doj': new_user.doj.strftime("%Y-%m-%d"),
                     'exp': f"{(datetime.now() - new_user.doj).total_seconds() / (365.25 * 24 * 3600):.2f} years of experience",
                     # Assuming image is stored as a base64-encoded string
                     'image': base64.b64encode(new_user.image).decode('utf-8') if new_user.image else None
@@ -923,7 +991,7 @@ class AdminManagerRequestResource(Resource):
                         recipients=[new_user.email], html=message, subject=subject)
                     conn.send(msg)
 
-                return jsonify({'message': "Approved", 'resource': man_data, 'type': req.type}), 201
+                return {'msg': "Approved", 'resource': man_data, 'type': req.type}, 201
             elif req.type == 'category':
                 data = req.message.split(',')
                 category = Category(name=data[0])
@@ -931,8 +999,8 @@ class AdminManagerRequestResource(Resource):
                 db.session.commit()
                 req.status = 'approved'
                 db.session.commit()
-                return jsonify({'message': f"Category {data[0]} created successfully",
-                                'resource': {'id': category.id, 'name': category.name}}), 201
+                return {'msg': f"Category {data[0]} created successfully",
+                        'resource': {'id': category.id, 'name': category.name}}, 201
             elif req.type == 'category update':
                 data = req.message.split(',')
                 category = Category.query.filter_by(id=int(data[0])).first()
@@ -940,8 +1008,8 @@ class AdminManagerRequestResource(Resource):
                 db.session.commit()
                 req.status = 'approved'
                 db.session.commit()
-                return jsonify({'message': f"Category {data[1]} created successfully",
-                                'resource': {'id': category.id, 'name': category.name}}), 201
+                return {'msg': f"Category {data[1]} created successfully",
+                        'resource': {'id': category.id, 'name': category.name}}, 201
             elif req.type == 'category delete':
                 data = req.message.split(',')
                 category = Category.query.filter_by(id=int(data[0])).first()
@@ -958,14 +1026,14 @@ class AdminManagerRequestResource(Resource):
                 db.session.commit()
                 req.status = 'approved'
                 db.session.commit()
-                return jsonify({'message': f"Category {category.name} created successfully",
-                                'resource': {'id': category.id, 'name': category.name}}), 200
+                return {'msg': f"Category {category.name} created successfully",
+                        'resource': {'id': category.id, 'name': category.name}}, 200
             elif req.type == 'product':
                 data = req.message.split(',')
                 name = data[0]
                 quantity = int(data[1])
-                manufacture = datetime.strptime(data[2], '%Y-%m-%d')
-                expiry = datetime.strptime(data[3], '%Y-%m-%d')
+                manufacture = datetime.strptime(data[2], "%Y-%m-%d")
+                expiry = datetime.strptime(data[3], "%Y-%m-%d")
                 rpu = float(data[4])
                 category_id = int(data[5])
                 unit = data[6]
@@ -987,8 +1055,8 @@ class AdminManagerRequestResource(Resource):
                     'id': new_product.id,
                     'quantity': new_product.quantity,
                     'name': new_product.name,
-                    'manufacture': new_product.manufacture,
-                    'expiry': new_product.expiry,
+                    'manufacture': new_product.manufacture.strftime("%Y-%m-%d"),
+                    'expiry': new_product.expiry.strftime("%Y-%m-%d"),
                     'description': new_product.description,
                     'rpu': new_product.rpu,
                     'unit': new_product.unit,
@@ -999,15 +1067,15 @@ class AdminManagerRequestResource(Resource):
                 db.session.commit()
                 req.status = 'approved'
                 db.session.commit()
-                return jsonify({'message': f"Product {data[0]} add successfully in the database",
-                                'resource': prod_data}), 201
+                return {'msg': f"Product {data[0]} add successfully in the database",
+                        'resource': prod_data}, 201
             elif req.type == 'product update':
                 data = req.message.split(',')
                 product = Product.query.filter_by(id=data[0]).first()
                 product.name = data[1]
                 product.quantity = int(data[2])
-                product.manufacture = datetime.strptime(data[3], '%Y-%m-%d')
-                product.expiry = datetime.strptime(data[4], '%Y-%m-%d')
+                product.manufacture = datetime.strptime(data[3], "%Y-%m-%d")
+                product.expiry = datetime.strptime(data[4], "%Y-%m-%d")
                 product.rpu = float(data[5])
                 product.category_id = int(data[6])
                 product.unit = data[7]
@@ -1019,8 +1087,8 @@ class AdminManagerRequestResource(Resource):
                     'id': product.id,
                     'quantity': product.quantity,
                     'name': product.name,
-                    'manufacture': product.manufacture,
-                    'expiry': product.expiry,
+                    'manufacture': product.manufacture.strftime("%Y-%m-%d"),
+                    'expiry': product.expiry.datetime("%Y-%m-%d"),
                     'description': product.description,
                     'rpu': product.rpu,
                     'unit': product.unit,
@@ -1029,8 +1097,8 @@ class AdminManagerRequestResource(Resource):
                 }
                 req.status = 'approved'
                 db.session.commit()
-                return jsonify({'message': f"Product {data[1]} add successfully in the database",
-                                'resource': prod_data}), 201
+                return {'msg': f"Product {data[1]} add successfully in the database",
+                        'resource': prod_data}, 201
             elif req.type == 'product delete':
                 data = req.message.split(',')
                 product = Product.query.filter_by(id=int(data[0])).first()
@@ -1042,14 +1110,14 @@ class AdminManagerRequestResource(Resource):
                 db.session.commit()
                 req.status = 'approved'
                 db.session.commit()
-                return jsonify({'message': f"Product {product.name} deleted successfully from the database", 'resource': data[0]}), 200
+                return {'msg': f"Product {product.name} deleted successfully from the database", 'resource': data[0]}, 200
         else:
-            return jsonify({'message': 'Not found'}), 404
+            return {'msg': 'Not found'}, 404
 
 
 # ----------- BUSINESS LOGIC END HERE -----------------###
 
-api.add_resource(LoginResource, '/api/login')
+api.add_resource(LoginResource, '/api/login', '/logout')
 api.add_resource(AuthUser, '/auth/user', '/update/profile/<int:id>')
 api.add_resource(NotListResource, '/decline/<int:id>', '/get/all/noti')
 api.add_resource(DeleteMan, '/delete/man/<int:id>')
@@ -1060,10 +1128,11 @@ api.add_resource(CategoryResource, '/update/category/<int:id>',
                  '/delete/category/<int:id>', '/get/category/<int:id>',
                  '/add/cat')
 api.add_resource(ProListResource, '/get/products')
-api.add_resource(ProductResource, '/update/product/<int:prod_id>',
+api.add_resource(ProductResource, '/update/product/<int:id>',
                  '/add/product')
 api.add_resource(CartResource, '/cart/item/remove/<int:id>',
                  '/cart/item/increment/<int:id>', '/add/to/cart')
+api.add_resource(CartDecrementResource, '/cart/item/decrement/<int:id>')
 
 api.add_resource(AdminManagerRequestResource, '/approve/<int:id>')
 api.add_resource(SearchCatResource, '/search/by/catgory')
@@ -1101,19 +1170,19 @@ def daily_reminder():
         conn.send(msg)
         sse.publish({"message": "Sent daily reminder to all \
                      the eligible users!"}, type='notifyadmin')
-    return {'message': "Daily reminder to users executed"}
+    return {'msg': "Daily reminder to users executed"}
 
 
 @celery.task()
 def monthly_report():
     print('monthly report to users executed')
-    return {'message': "Monthly report to users executed"}
+    return {'msg': "Monthly report to users executed"}
 
 
 @celery.task()
 def user_triggered_async_job():
     print('user triggered async job executed')
-    return {'message': "User triggered async job executed"}
+    return {'msg': "User triggered async job executed"}
 
 
 # ------- To schedule the tasks --------#
@@ -1177,12 +1246,12 @@ class SendWarningResource(Resource):
         data = request.get_json()
         with mail.connect() as conn:
             subject = "Alert from Admin"
-            message = data['message']
+            message = data['msg']
             msg = Message(recipients=[data['email']],
                           html=message, subject=subject)
             conn.send(msg)
 
-            return jsonify({'message': "sent"}), 200
+            return {'msg': "sent"}, 200
 
 
 api.add_resource(DownloadResource, '/get/report/download')

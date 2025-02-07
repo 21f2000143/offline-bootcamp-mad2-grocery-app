@@ -12,7 +12,7 @@ def init_mail():
     app.config['MAIL_USE_SSL'] = False
     app.config['MAIL_DEFAULT_SENDER'] = "support@ds.study.iitm.ac.in"
     mail = Mail()
-    mail.init_app(app) 
+    mail.init_app(app)
     return mail
 
 # Usage in other files:

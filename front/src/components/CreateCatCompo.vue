@@ -1,30 +1,29 @@
 <template>
-  <div class="row justify-content-center m-3 text-color-light">
-    <div class="card bg-light" style="width: 18rem;">
-      <div class="card-body">
-        <div class="d-flex justify-content-end">
-          <!-- Cross button to close the card -->
-          <button type="button" class="btn-close" aria-label="Close" @click="closeCard"></button>
-        </div>
-        <h5 class="card-title">Add Category</h5>
-        <form @submit.prevent="addcategory">
-          <div class="mb-3">
-            <label for="name" class="form-label">Category Name</label>
-            <input type="text" class="form-control" v-model="name" required>
-            <div v-if="message" class="alert alert-warning">
-              {{ message }}
-            </div>
+  <FormCompo>
+    <template v-slot:form>
+      <h5 class="card-title">Add Category</h5>
+      <form @submit.prevent="addcategory">
+        <div class="mb-3">
+          <label for="name" class="form-label">Category Name</label>
+          <input type="text" class="form-control" v-model="name" required>
+          <div v-if="message" class="alert alert-warning">
+            {{ message }}
           </div>
-          <button type="submit" class="btn btn-outline-primary">Add</button>
-        </form>
-      </div>
-    </div>
-  </div>
+        </div>
+        <button type="submit" class="btn btn-outline-primary">Add</button>
+      </form>
+    </template>
+  </FormCompo>
 </template>
 
-<script>
+<script type="module">
+import FormCompo from './FormCompo.vue';
+import { addCategory } from '../services/apiServices';
 export default {
-
+  name: 'CreateCatCompo',
+  components: {
+    FormCompo
+  },
   data() {
     return {
       name: '',
@@ -32,53 +31,14 @@ export default {
     }
   },
   methods: {
-    closeCard() {
-      if (this.$store.state.authenticatedUser.role === 'admin') {
-        if (this.$route.path != '/admin') {
-          this.$router.push('/admin')
-        }
-      }
-      else {
-        if (this.$route.path != '/manager') {
-          this.$router.push('/manager')
-        }
-      }
-    },
-    getCookie(name) {
-      console.log(document.cookie)
-      const value = `; ${document.cookie}`;
-      console.log(value)
-      const parts = value.split(`; ${name}=`);
-      if (parts.length === 2) return parts.pop().split(';').shift();
+    home() {
+      home(this.$store, this.$route, this.$router);
     },
     async addcategory() {
       try {
-        const response = await fetch('http://127.0.0.1:5000/add/cat', {
-          method: 'POST',
-          mode: 'cors',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('jwt')
-          },
-          body: JSON.stringify({
-            name: this.name
-          }),
-        });
-        
-        if (response.status === 201) {
-          const data = await response.json();
-          console.log(data.resource)
-          if (this.$store.state.authenticatedUser.role === 'admin') {
-            this.$store.commit('addCat', data.resource)
-          }
-          else {
-            this.$store.commit('addNoti', data.resource)
-          }
-          this.closeCard()
-        } else {
-          alert(data.message);
-        }
+        const response = await addCategory(this.name);
+        this.$store.commit('addCat', response.data.resource);
+        this.home();
       } catch (error) {
         console.error(error);
       }

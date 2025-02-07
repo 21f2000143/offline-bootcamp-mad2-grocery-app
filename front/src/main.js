@@ -1,42 +1,26 @@
-import { createApp } from 'vue'
-import './style.css'
-import 'bootstrap/dist/css/bootstrap.min.css';
-import 'bootstrap/dist/js/bootstrap.min.js';
-import App from './App.vue'
-import router from './router'
-import store from './store';
-import PrimeVue from 'primevue/config';
-import Aura from '@primevue/themes/aura';
-import 'primeicons/primeicons.css'
-import Button from 'primevue/button';
-import Tooltip from 'primevue/tooltip';
-import Menubar from 'primevue/menubar';
-import InputText from 'primevue/inputtext';
-import Badge from 'primevue/badge';
-import Avatar from 'primevue/avatar';
-import Checkbox from 'primevue/checkbox';
-import Card from 'primevue/card';
+import { createApp } from "vue";
+import "./style.css";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "bootstrap/dist/js/bootstrap.min.js";
+/* import the fontawesome core */
+import { library } from "@fortawesome/fontawesome-svg-core";
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { faBell } from "@fortawesome/free-solid-svg-icons";
+import { faShoppingCart } from "@fortawesome/free-solid-svg-icons";
+import { faStar } from "@fortawesome/free-solid-svg-icons";
+import { faStar as farStar } from "@fortawesome/free-regular-svg-icons";
+library.add(farStar);
+library.add(faShoppingCart); // Add the star icon to the library
+library.add(faStar); // Add the star icon to the library
+library.add(faBell); // Add the bell icon to the library
+import App from "./App.vue";
+import router from "./router";
+import store from "./store";
 
+const app = createApp(App);
 
+app.use(router);
+app.use(store);
+app.component("FontAwesomeIcon", FontAwesomeIcon);
 
-
-
-
-const app = createApp(App)
-
-app.use(router)
-app.use(store)
-app.use(PrimeVue, {
-    theme: {
-        preset: Aura
-    }
-});
-app.directive('tooltip', Tooltip);
-app.component('Button', Button)
-app.component('InputText', InputText)
-app.component('Badge', Badge)
-app.component('Avatar', Avatar)
-app.component('Menubar', Menubar)
-app.component('Checkbox', Checkbox)
-app.component('Card', Card)
-app.mount('#app')
+app.mount("#app");

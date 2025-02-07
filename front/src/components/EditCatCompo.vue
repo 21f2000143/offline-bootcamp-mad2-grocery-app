@@ -1,139 +1,86 @@
 <template>
-    <div class="row justify-content-center m-3 text-color-light">
-  <div class="card bg-light" style="width: 18rem;">
-    <div class="card-body">
-    <div class="d-flex justify-content-end">
-      <!-- Cross button to close the card -->
-      <button type="button" class="btn-close" aria-label="Close" @click="closeCard"></button>
-    </div>
+  <FormCompo>
+    <template v-slot:form>
       <h5 class="card-title">Add Category</h5>
       <form @submit.prevent="updatecategory">
         <div class="mb-3">
-        <label for="name" class="form-label">Category Name</label>
-        <input type="text" class="form-control" v-model="name" required>
+          <label for="name" class="form-label">Category Name</label>
+          <input type="text" class="form-control" v-model="name" required>
           <div v-if="message" class="alert alert-warning">
-            {{message}}
+            {{ message }}
           </div>
         </div>
         <div class="d-flex">
-        <button type="submit" class="btn btn-outline-primary me-5">Update</button>
-        <a class="btn btn-outline-danger" @click="deletecategory">Delete</a>
+          <button type="submit" class="btn btn-outline-primary me-5">Update</button>
+          <a class="btn btn-outline-danger" @click="deletecategory">Delete</a>
         </div>
-        </form>
-    </div>
-  </div>
-</div>
+      </form>
+    </template>
+  </FormCompo>
 </template>
 
 <script>
+import FormCompo from './FormCompo.vue';
+import home from '../utils/navigation';
+import { updateCategory, fetchCategory, deleteCategory } from '../services/apiServices';
 export default {
-    data() {
+  name: 'EditCatCompo',
+  components: {
+    FormCompo
+  },
+  data() {
     return {
-      name:'',
+      name: '',
       message: ''
     }
   },
   methods: {
-    closeCard(){
-      if(this.$store.state.authenticatedUser.role==='admin'){
-        if(this.$route.path!='/admin'){
-          this.$router.push('/admin')
-        }
-      }
-      else{
-        if(this.$route.path!='/manager'){
-          this.$router.push('/manager')
-        }
-      }
+    home() {
+      home(this.$store, this.$route, this.$router);
     },
     async fetchcategory() {
       try {
-        const response = await fetch('http://127.0.0.1:5000/get/category/'+this.$route.params.id,{
-          method: 'GET',
-          mode: 'cors',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('jwt')
-          }
-        });
-        if (response.status === 200) {
-          const data = await response.json();
-          this.name = data.name
-        } else if(response.status === 404) {
-          alert(data.message);
-        }
+        const data = await fetchCategory(this.$route.params.id);
+        console.log(data);
+        this.name = data.name;
       } catch (error) {
         console.error(error);
       }
     },
     async updatecategory() {
-      if(confirm("Are you sure?")){
+      if (confirm("Are you sure?")) {
         try {
-          const response = await fetch('http://127.0.0.1:5000/update/category/'+this.$route.params.id,{
-            method: 'PUT',
-            mode: 'cors',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + localStorage.getItem('jwt')
-            },
-            body: JSON.stringify({
-              name: this.name
-            }),
-          });
-          if (response.status === 201) {
-            const data = await response.json();
-            console.log(data, "printed data")
-            if(this.$store.state.authenticatedUser.role==='admin'){
-              this.$store.commit('updateCategory', data.resource)
-            }
-            else{
-              this.$store.commit('addNoti', data.resource)
-            }               
-            this.closeCard()
-          } else {
-            const data = await response.json();
-            alert(data.message);
+          const data = await updateCategory(this.$route.params.id, this.name);
+          if (this.$store.state.authenticatedUser.role === 'admin') {
+            this.$store.commit('updateCategory', data.resource);
           }
+          else {
+            this.$store.commit('addNoti', data.resource)
+          }
+          this.home();
         } catch (error) {
           console.error(error);
         }
       }
     },
     async deletecategory() {
-      if(confirm("Are you sure?")){
+      if (confirm("Are you sure?")) {
         try {
-          const response = await fetch('http://127.0.0.1:5000/delete/category/'+this.$route.params.id,{
-            method: 'DELETE',
-            mode: 'cors',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'Bearer ' + localStorage.getItem('jwt')
-            },
-          });
-          if (response.status === 201) {
-            const data = await response.json();
-            console.log(data, "printed data")
-            if(this.$store.state.authenticatedUser.role==='admin'){
-              this.$store.commit('deleteCategory', data.resource.id)
-            }
-            else{
-              this.$store.commit('addNoti', data.resource)
-            }              
-            this.closeCard()
-          } else {
-            const data = await response.json();
-            alert(data.message);
+          const data = await deleteCategory(this.$route.params.id);
+          if (this.$store.state.authenticatedUser.role === 'admin') {
+            this.$store.commit('deleteCategory', data.resource.id);
           }
+          else {
+            this.$store.commit('addNoti', data.resource)
+          }
+          this.home();
         } catch (error) {
           console.error(error);
         }
       }
     }
   },
-  mounted(){
+  mounted() {
     this.fetchcategory()
   }
 }
